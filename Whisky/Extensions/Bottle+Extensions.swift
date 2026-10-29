@@ -118,7 +118,7 @@ extension Bottle {
     func pinStartMenuPrograms() -> [String] {
         var pinned: [String] = []
         let startMenuPrograms = getStartMenuPrograms()
-        for (startMenuProgram, name) in startMenuPrograms {
+        for (startMenuProgram, name) in startMenuPrograms where !isAccessory(startMenuProgram.url, name: name) {
             // Programs installed outside Program Files (e.g. in AppData) are only known through their shortcut
             if !programs.contains(where: {
                 $0.url.path().caseInsensitiveCompare(startMenuProgram.url.path()) == .orderedSame
@@ -136,6 +136,15 @@ extension Bottle {
             }
         }
         return pinned
+    }
+
+    /// Installers also add shortcuts to their website (.url) and uninstaller: those don't become apps
+    private func isAccessory(_ target: URL, name: String) -> Bool {
+        let file = target.lastPathComponent.lowercased()
+        let words = name.lowercased()
+        return target.pathExtension.lowercased() != "exe"
+            || file.hasPrefix("unins") || file.hasPrefix("unwise")
+            || ["uninstall", "desinstalar", "deinstall", "désinstaller"].contains { words.contains($0) }
     }
 
     func updateInstalledPrograms() {
