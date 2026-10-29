@@ -28,6 +28,11 @@ struct ClassicGame: Identifiable {
     let target: String
     var id: URL { folder }
     var app: URL { ProgramBundle.applicationsFolder.appending(path: "\(name).app") }
+    /// The name goes into the launch script: only characters that are safe there
+    var executableName: String {
+        let safe = String(name.filter { $0.isLetter || $0.isNumber || " ._-".contains($0) })
+        return safe.isEmpty || safe.allSatisfy({ $0 == "." }) ? "Game" : safe
+    }
 }
 
 /// Classic games (Windows 3.1, DOS...) run in ScummVM instead of Wine: their 16-bit code can't run under
@@ -91,7 +96,7 @@ enum ClassicGames {
         }
         for game in games {
             let config = try? String(contentsOf: game.folder.appending(path: "scummvm.ini"), encoding: .utf8)
-            let binary = game.app.appending(path: "Contents/MacOS").appending(path: game.name)
+            let binary = game.app.appending(path: "Contents/MacOS").appending(path: game.executableName)
             if newBinary || config?.contains("[game]") != true
                 || !FileManager.default.fileExists(atPath: binary.path(percentEncoded: false)) {
                 try? refresh(game)
@@ -191,7 +196,7 @@ enum ClassicGames {
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
 
         // Named after the game, so Activity Monitor shows the game too
-        let binary = macos.appending(path: game.name)
+        let binary = macos.appending(path: game.executableName)
         try FileManager.default.copyItem(at: scummvm, to: binary)
         _ = try run(URL(filePath: "/usr/bin/codesign"), ["-f", "-s", "-", binary.path])
         try FileManager.default.createSymbolicLink(at: contents.appending(path: "Frameworks"),
@@ -210,7 +215,7 @@ enum ClassicGames {
         let script = """
         #!/bin/bash
         DIR="$(cd "$(dirname "$0")" && pwd)"
-        exec "$DIR/\(game.name)" --config="\(game.folder.path(percentEncoded: false))/scummvm.ini" game
+        exec "$DIR/\(game.executableName)" --config="\(game.folder.path(percentEncoded: false))/scummvm.ini" game
         """
         try script.write(to: macos.appending(path: "launch"), atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755],
@@ -248,7 +253,7 @@ enum ClassicGames {
         [game]
         engineid=\(ids.first ?? "")
         gameid=\(ids.last ?? "")
-        description=\(game.name)
+        description=\(game.name.replacingOccurrences(of: "\n", with: " "))
         path=\(folder)/Data
         savepath=\(folder)/Saves
 
