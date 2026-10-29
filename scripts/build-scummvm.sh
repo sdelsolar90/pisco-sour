@@ -1,5 +1,6 @@
 #!/bin/sh
-# Builds the ScummVM that Pisco Sour runs classic games with: official ScummVM plus scummvm-no-splash.patch,
+# Builds the ScummVM that Pisco Sour runs classic games with: official ScummVM plus scummvm-pisco-sour.patch
+# (no splash screen; menus named after the game, Cmd+W closes it),
 # so games open straight away as apps of their own. Pisco Sour still downloads the official release for the
 # data files (themes, engine .dat files); only the binary and its libraries come from here.
 # Needs Xcode tools and: brew install sdl3 freetype libpng jpeg-turbo libvorbis flac mad theora faad2 libmpeg2
@@ -12,7 +13,7 @@ WORK="$1"; OUT="$ROOT/PiscoSour/ScummVM"
 mkdir -p "$WORK"
 [ -d "$WORK/src" ] || git clone --depth 1 --branch "v$VERSION" https://github.com/scummvm/scummvm.git "$WORK/src"
 cd "$WORK/src"
-git apply --check "$ROOT/scripts/scummvm-no-splash.patch" 2>/dev/null && git apply "$ROOT/scripts/scummvm-no-splash.patch"
+git apply --check "$ROOT/scripts/scummvm-pisco-sour.patch" 2>/dev/null && git apply "$ROOT/scripts/scummvm-pisco-sour.patch"
 ./configure --enable-release --disable-debug --disable-updates --disable-fluidsynth --disable-discord --disable-sonivox --prefer-sdl3
 make -j"$(sysctl -n hw.ncpu)"
 

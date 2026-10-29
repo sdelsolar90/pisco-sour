@@ -1,0 +1,49 @@
+diff --git a/backends/platform/sdl/macosx/appmenu_osx.mm b/backends/platform/sdl/macosx/appmenu_osx.mm
+index 136dc359..20dde8f8 100644
+--- a/backends/platform/sdl/macosx/appmenu_osx.mm
++++ b/backends/platform/sdl/macosx/appmenu_osx.mm
+@@ -296,20 +296,26 @@ void replaceApplicationMenuItems() {
+ 		[[NSApp mainMenu] removeItemAtIndex:0];
+ 	}
+ 
+-	NSMenu *appleMenu = addMenu(Common::U32String("ScummVM"), @"", @selector(setAppleMenu:));
++	// Pisco Sour: each game is an app of its own, so the menus carry the game's name
++	NSString *bundleName = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"];
++	Common::String appName = bundleName ? [bundleName UTF8String] : "ScummVM";
++
++	NSMenu *appleMenu = addMenu(Common::U32String(appName), @"", @selector(setAppleMenu:));
+ 	if (appleMenu) {
+-		addMenuItem(_("About ScummVM"), nil, @selector(orderFrontStandardAboutPanel:), @"", appleMenu);
++		addMenuItem(Common::U32String("About " + appName), nil, @selector(orderFrontStandardAboutPanel:), @"", appleMenu);
+ 		[appleMenu addItem:[NSMenuItem separatorItem]];
+-		addMenuItem(_("Hide ScummVM"), nil, @selector(hide:), @"h", appleMenu);
++		addMenuItem(Common::U32String("Hide " + appName), nil, @selector(hide:), @"h", appleMenu);
+ 		addMenuItem(_("Hide Others"), nil, @selector(hideOtherApplications:), @"h", appleMenu, (NSEventModifierFlagOption|NSEventModifierFlagCommand));
+ 		addMenuItem(_("Show All"), nil, @selector(unhideAllApplications:), @"", appleMenu);
+ 		[appleMenu addItem:[NSMenuItem separatorItem]];
+-		addMenuItem(_("Quit ScummVM"), nil, @selector(terminate:), @"q", appleMenu);
++		addMenuItem(Common::U32String("Quit " + appName), nil, @selector(terminate:), @"q", appleMenu);
+ 	}
+ 
+ 	NSMenu *windowMenu = addMenu(_("Window"), @"", @selector(setWindowsMenu:));
+ 	if (windowMenu) {
+ 		addMenuItem(_("Minimize"), nil, @selector(performMiniaturize:), @"m", windowMenu);
++		// Pisco Sour: Cmd+W closes the game, like any Mac window
++		addMenuItem(_("Close"), nil, @selector(performClose:), @"w", windowMenu);
+ 	}
+ 
+ 	// Note: special care must be taken for the Help menu before 10.6,
+diff --git a/engines/engine.cpp b/engines/engine.cpp
+index 8c55932d..9c76994f 100644
+--- a/engines/engine.cpp
++++ b/engines/engine.cpp
+@@ -289,6 +289,9 @@ bool splash = false;
+ #include "logo_data.h"
+ 
+ void splashScreen() {
++	// Pisco Sour: games open straight away, as apps of their own
++	splash = true;
++	return;
+ 	Common::MemoryReadStream stream(logo_data, ARRAYSIZE(logo_data));
+ 
+ 	Image::BitmapDecoder bitmap;
