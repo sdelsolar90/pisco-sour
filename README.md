@@ -32,6 +32,11 @@ También damos las gracias a:
 
 1. Abre el `.dmg` y arrastra **Pisco Sour** a Aplicaciones.
 2. La app aún no está notarizada por Apple, así que la primera vez macOS la bloqueará. Ábrela una vez, ve a **Ajustes del Sistema → Privacidad y seguridad** y pulsa **"Abrir igualmente"**.
+
+   Otra forma: abre **Terminal** y pega esta línea (solo hace falta una vez):
+   ```sh
+   xattr -dr com.apple.quarantine "/Applications/Pisco Sour.app"
+   ```
 3. Al abrirla, Pisco Sour descarga Wine (unos 185 MB) y ya puedes instalar programas.
 
 ## Requisitos
