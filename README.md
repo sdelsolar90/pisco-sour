@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="Whisky/Assets.xcassets/AppIcon.appiconset/256@2x.png" width="160" alt="Pisco Sour">
+<img src="PiscoSour/Assets.xcassets/AppIcon.appiconset/256@2x.png" width="160" alt="Pisco Sour">
 
 # Pisco Sour
 
@@ -46,14 +46,14 @@ También damos las gracias a:
 
 ## Compilar
 
-1. Abre `Whisky.xcodeproj` en Xcode.
+1. Abre `PiscoSour.xcodeproj` en Xcode.
 2. Compila el ScummVM que lleva la app (sin la pantalla de inicio de ScummVM, para que los juegos abran directamente):
    ```sh
    scripts/build-scummvm.sh ~/scummvm-build
    ```
-3. Compila el esquema `Whisky`. La app resultante se llama `Pisco Sour.app`.
+3. Compila el esquema `PiscoSour`. La app resultante se llama `Pisco Sour.app`.
 
-`scripts/build-icu-forwarders.sh` regenera las librerías ICU de `Whisky/WindowsICU`.
+`scripts/build-icu-forwarders.sh` regenera las librerías ICU de `PiscoSour/WindowsICU`.
 
 ## Licencia
 

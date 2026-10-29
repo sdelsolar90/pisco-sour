@@ -4,11 +4,11 @@
 # data files (themes, engine .dat files); only the binary and its libraries come from here.
 # Needs Xcode tools and: brew install sdl3 freetype libpng jpeg-turbo libvorbis flac mad theora faad2 libmpeg2
 #   a52dec giflib fribidi libvpx dylibbundler
-# Usage: scripts/build-scummvm.sh <work folder>   (output: Whisky/ScummVM, not tracked by git)
+# Usage: scripts/build-scummvm.sh <work folder>   (output: PiscoSour/ScummVM, not tracked by git)
 set -e
 VERSION=2026.4.0   # keep in sync with ClassicGames.downloadURL
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-WORK="$1"; OUT="$ROOT/Whisky/ScummVM"
+WORK="$1"; OUT="$ROOT/PiscoSour/ScummVM"
 mkdir -p "$WORK"
 [ -d "$WORK/src" ] || git clone --depth 1 --branch "v$VERSION" https://github.com/scummvm/scummvm.git "$WORK/src"
 cd "$WORK/src"

@@ -3,7 +3,7 @@
 # This builds those DLLs as forwarders to the official ICU4C Win64 release (versioned exports, e.g. ucnv_open_79).
 # Needs: brew install mingw-w64. Usage: scripts/build-icu-forwarders.sh <icu4c bin64 folder> <version, e.g. 79>
 set -e
-BIN="$1"; V="$2"; OUT="$(dirname "$0")/../Whisky/WindowsICU"
+BIN="$1"; V="$2"; OUT="$(dirname "$0")/../PiscoSour/WindowsICU"
 TMP="$(mktemp -d)"
 for lib in uc in; do
   x86_64-w64-mingw32-objdump -p "$BIN/icu${lib}${V}.dll" | awk '/\+base\[/{print $NF}' \
