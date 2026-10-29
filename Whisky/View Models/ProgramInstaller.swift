@@ -50,14 +50,24 @@ enum ProgramInstaller {
         bottle.settings.wineVersion = SemanticVersion(wineVersion) ?? SemanticVersion(0, 0, 0)
         bottleVM.bottlesList.paths.append(bottleURL)
 
-        if installer.pathExtension.lowercased() == "iso" {
-            try await installFromDisc(installer, bottle: bottle)
-        } else {
-            try await runInstaller(installer, bottle: bottle)
+        do {
+            if installer.pathExtension.lowercased() == "iso" {
+                try await installFromDisc(installer, bottle: bottle)
+            } else {
+                try await runInstaller(installer, bottle: bottle)
+            }
+        } catch {
+            bottle.remove(delete: true)
+            throw error
         }
 
         bottle.updateInstalledPrograms()
         let installed = bottle.pinStartMenuPrograms()
+        // Nothing new on drive C (e.g. the installer was cancelled): don't leave an empty bottle behind
+        if installed.isEmpty && executables(in: bottleURL).isSubset(of: executables(in: templateURL)) {
+            bottle.remove(delete: true)
+            throw "El instalador se cerró sin instalar nada. ¿Lo cancelaste? Puedes intentarlo de nuevo."
+        }
         if let name = installed.first {
             bottle.settings.name = name
         }
@@ -82,9 +92,67 @@ enum ProgramInstaller {
     }
 
     /// `start /wait` returns when the installer exits; `wineserver -w` when everything it started has finished
+    /// Many installers open the program when they finish, and `wineserver -w` would wait until the user closes it.
+    /// So it also stops waiting once the installer's shortcuts are in place and haven't changed for a few seconds.
     private static func runInstaller(_ installer: URL, bottle: Bottle) async throws {
+        let before = shortcuts(in: bottle.url)
         try await Wine.runWine(["start", "/wait", "/unix", installer.path(percentEncoded: false)], bottle: bottle)
-        for await _ in try Wine.runWineserverProcess(args: ["-w"], bottle: bottle) { }
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                for await _ in try Wine.runWineserverProcess(args: ["-w"], bottle: bottle) { }
+            }
+            group.addTask {
+                try await waitForShortcuts(in: bottle.url, before: before)
+            }
+            try await group.next()
+            group.cancelAll()
+        }
+    }
+
+    /// Returns once there are new shortcuts that haven't changed for a few seconds
+    private static func waitForShortcuts(in bottle: URL, before: [String: Date]) async throws {
+        var last = before
+        var unchangedSince = Date()
+        while true {
+            try await Task.sleep(for: .seconds(2))
+            let now = shortcuts(in: bottle)
+            if now != last {
+                last = now
+                unchangedSince = Date()
+            } else if now != before && Date().timeIntervalSince(unchangedSince) >= 6 {
+                return
+            }
+        }
+    }
+
+    /// Start Menu and Desktop shortcuts, with their dates, to notice when an installer adds them
+    private static func shortcuts(in bottle: URL) -> [String: Date] {
+        var found: [String: Date] = [:]
+        let enumerator = FileManager.default.enumerator(at: bottle.appending(path: "drive_c"),
+                                                        includingPropertiesForKeys: [.contentModificationDateKey])
+        while let url = enumerator?.nextObject() as? URL {
+            if url.lastPathComponent == "windows" { enumerator?.skipDescendants() }
+            guard url.pathExtension.lowercased() == "lnk" else { continue }
+            let date = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            found[url.path] = date ?? .distantPast
+        }
+        return found
+    }
+
+    /// Programs on drive C (outside Windows itself and temporary files), relative to the bottle
+    private static func executables(in bottle: URL) -> Set<String> {
+        let driveC = bottle.appending(path: "drive_c")
+        var found: Set<String> = []
+        let enumerator = FileManager.default.enumerator(at: driveC, includingPropertiesForKeys: nil)
+        while let url = enumerator?.nextObject() as? URL {
+            if ["windows", "Temp"].contains(url.lastPathComponent) { enumerator?.skipDescendants() }
+            if url.pathExtension.lowercased() == "exe" {
+                let path = url.path(percentEncoded: false)
+                found.insert(String(path.dropFirst(driveC.path(percentEncoded: false).count)))
+            }
+        }
+        return found
     }
 
     /// Mounts the disc image as CD drive D: and runs its setup, as Windows would from autorun
