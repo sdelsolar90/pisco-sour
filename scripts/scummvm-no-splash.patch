@@ -1,0 +1,14 @@
+diff --git a/engines/engine.cpp b/engines/engine.cpp
+index 8c55932d..9c76994f 100644
+--- a/engines/engine.cpp
++++ b/engines/engine.cpp
+@@ -289,6 +289,9 @@ bool splash = false;
+ #include "logo_data.h"
+ 
+ void splashScreen() {
++	// Pisco Sour: games open straight away, as apps of their own
++	splash = true;
++	return;
+ 	Common::MemoryReadStream stream(logo_data, ARRAYSIZE(logo_data));
+ 
+ 	Image::BitmapDecoder bitmap;
