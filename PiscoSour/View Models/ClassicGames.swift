@@ -91,7 +91,9 @@ enum ClassicGames {
         }
         for game in games {
             let config = try? String(contentsOf: game.folder.appending(path: "scummvm.ini"), encoding: .utf8)
-            if newBinary || config?.contains("[game]") != true {
+            let binary = game.app.appending(path: "Contents/MacOS").appending(path: game.name)
+            if newBinary || config?.contains("[game]") != true
+                || !FileManager.default.fileExists(atPath: binary.path(percentEncoded: false)) {
                 try? refresh(game)
             }
         }
@@ -188,8 +190,10 @@ enum ClassicGames {
         try FileManager.default.createDirectory(at: macos, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
 
-        try FileManager.default.copyItem(at: scummvm, to: macos.appending(path: "scummvm"))
-        _ = try run(URL(filePath: "/usr/bin/codesign"), ["-f", "-s", "-", macos.appending(path: "scummvm").path])
+        // Named after the game, so Activity Monitor shows the game too
+        let binary = macos.appending(path: game.name)
+        try FileManager.default.copyItem(at: scummvm, to: binary)
+        _ = try run(URL(filePath: "/usr/bin/codesign"), ["-f", "-s", "-", binary.path])
         try FileManager.default.createSymbolicLink(at: contents.appending(path: "Frameworks"),
                                                    withDestinationURL: programFolder.appending(path: "Frameworks"))
         let scummvmResources = scummvmFolder.appending(path: "Resources")
@@ -206,7 +210,7 @@ enum ClassicGames {
         let script = """
         #!/bin/bash
         DIR="$(cd "$(dirname "$0")" && pwd)"
-        exec "$DIR/scummvm" --config="\(game.folder.path(percentEncoded: false))/scummvm.ini" game
+        exec "$DIR/\(game.name)" --config="\(game.folder.path(percentEncoded: false))/scummvm.ini" game
         """
         try script.write(to: macos.appending(path: "launch"), atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755],
