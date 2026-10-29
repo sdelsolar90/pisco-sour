@@ -95,9 +95,10 @@ enum ClassicGames {
         }
     }
 
-    /// Rebuilds the game's app and settings, keeping its icon
+    /// Rebuilds the game's app and settings, keeping its icon (or taking it from the game files again)
     static func refresh(_ game: ClassicGame) throws {
         let icon = NSImage(contentsOf: game.app.appending(path: "Contents/Resources/AppIcon.icns"))
+            ?? icon(in: game.folder.appending(path: "Data"))
         try makeApp(for: game, icon: icon)
     }
 
