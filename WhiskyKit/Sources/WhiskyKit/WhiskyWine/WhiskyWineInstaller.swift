@@ -17,6 +17,7 @@
 //
 
 import Foundation
+import CryptoKit
 import SemanticVersion
 
 public class WhiskyWineInstaller {
@@ -35,6 +36,8 @@ public class WhiskyWineInstaller {
     public static let wineDownloadURL = URL(string: "https://github.com/Gcenx/macOS_Wine_builds/releases/download/"
                                             + "11.0_1/wine-stable-11.0_1-osx64.tar.xz")
     private static let downloadedWineVersion = SemanticVersion(11, 0, 1)
+    private static let downloadSHA256 = "b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388"
+    private static let versionPlist = libraryFolder.appending(path: "WhiskyWineVersion").appendingPathExtension("plist")
 
     public static func isWhiskyWineInstalled() -> Bool {
         return whiskyWineVersion() != nil
@@ -42,16 +45,18 @@ public class WhiskyWineInstaller {
 
     public static func install(from: URL) {
         do {
-            if !FileManager.default.fileExists(atPath: applicationFolder.path) {
-                try FileManager.default.createDirectory(at: applicationFolder, withIntermediateDirectories: true)
-            } else {
-                // Recreate it
-                try FileManager.default.removeItem(at: applicationFolder)
-                try FileManager.default.createDirectory(at: applicationFolder, withIntermediateDirectories: true)
-            }
+            defer { try? FileManager.default.removeItem(at: from) }
+            let hash = SHA256.hash(data: try Data(contentsOf: from)).map { String(format: "%02x", $0) }.joined()
+            guard hash == downloadSHA256 else { throw "The Wine download is damaged or not the expected one" }
 
+            // Only Wine is replaced: the same folder holds the bottles, games and ScummVM
+            try FileManager.default.createDirectory(at: applicationFolder, withIntermediateDirectories: true)
+            let wineFiles = [libraryFolder.appending(path: "Wine"), versionPlist,
+                             applicationFolder.appending(path: "Wine Stable.app")]
+            for old in wineFiles {
+                try? FileManager.default.removeItem(at: old)
+            }
             try Tar.untar(tarBall: from, toURL: applicationFolder)
-            try FileManager.default.removeItem(at: from)
             try moveDownloadedWine()
         } catch {
             print("Failed to install WhiskyWine: \(error)")
@@ -73,53 +78,21 @@ public class WhiskyWineInstaller {
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .xml
         try encoder.encode(WhiskyWineVersion(version: downloadedWineVersion))
-            .write(to: libraryFolder.appending(path: "WhiskyWineVersion").appendingPathExtension("plist"))
+            .write(to: versionPlist)
     }
 
     public static func uninstall() {
         do {
-            try FileManager.default.removeItem(at: libraryFolder)
+            // Libraries also holds ScummVM, which classic games need
+            try FileManager.default.removeItem(at: libraryFolder.appending(path: "Wine"))
+            try FileManager.default.removeItem(at: versionPlist)
         } catch {
             print("Failed to uninstall WhiskyWine: \(error)")
         }
     }
 
+    /// Whisky's version feed isn't Pisco Sour's, and an update reinstalls Wine: no checks until it has its own
     public static func shouldUpdateWhiskyWine() async -> (Bool, SemanticVersion) {
-        let versionPlistURL = "https://data.getwhisky.app/Wine/WhiskyWineVersion.plist"
-        let localVersion = whiskyWineVersion()
-
-        var remoteVersion: SemanticVersion?
-
-        if let remoteUrl = URL(string: versionPlistURL) {
-            remoteVersion = await withCheckedContinuation { continuation in
-                URLSession(configuration: .ephemeral).dataTask(with: URLRequest(url: remoteUrl)) { data, _, error in
-                    do {
-                        if error == nil, let data = data {
-                            let decoder = PropertyListDecoder()
-                            let remoteInfo = try decoder.decode(WhiskyWineVersion.self, from: data)
-                            let remoteVersion = remoteInfo.version
-
-                            continuation.resume(returning: remoteVersion)
-                            return
-                        }
-                        if let error = error {
-                            print(error)
-                        }
-                    } catch {
-                        print(error)
-                    }
-
-                    continuation.resume(returning: nil)
-                }.resume()
-            }
-        }
-
-        if let localVersion = localVersion, let remoteVersion = remoteVersion {
-            if localVersion < remoteVersion {
-                return (true, remoteVersion)
-            }
-        }
-
         return (false, SemanticVersion(0, 0, 0))
     }
 
